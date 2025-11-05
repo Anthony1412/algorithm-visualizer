@@ -3,55 +3,51 @@ import { selectionSort } from '/algorithms/selectionSort.js';
 import { insertionSort } from '/algorithms/insertionSort.js';
 import { mergeSort } from '/algorithms/mergeSort.js';
 import { quickSort } from '/algorithms/quickSort.js';
-import { renderArray, swap, delay } from './utils/helpers.js';
+import { renderArray } from '/utils/render.js';
 
 let array = [];
-let arraySize = 50;
-let speed = 250;
+let arraySize = 20;
+let speed = 200;
 let algorithm = 'bubbleSort';
-const arrayContainer = document.getElementById('array-container');
+const container = document.getElementById('array-container');
 
-function generateArray() {
+function generateRandomArray() {
     array = [];
     for (let i = 0; i < arraySize; i++) {
-        array.push(Math.floor(Math.random() * 400) + 10);
+        array.push(Math.floor(Math.random() * 300) + 20);
     }
-    renderArray(array, arrayContainer);
+    renderArray(array, container);
 }
 
-document.getElementById('array-size').addEventListener('input', (e) => {
+document.getElementById('array-size').addEventListener('input', e => {
     arraySize = e.target.value;
-    generateArray();
+    generateRandomArray();
 });
 
-document.getElementById('speed').addEventListener('input', (e) => {
+document.getElementById('speed').addEventListener('input', e => {
     speed = e.target.value;
 });
 
-document.getElementById('algorithm-select').addEventListener('change', (e) => {
+document.getElementById('algorithm-select').addEventListener('change', e => {
     algorithm = e.target.value;
 });
 
-document.getElementById('new-array').addEventListener('click', generateArray);
+document.getElementById('new-array').addEventListener('click', generateRandomArray);
+
+document.getElementById('set-array').addEventListener('click', () => {
+    const input = document.getElementById('user-array').value;
+    array = input.split(',').map(x => parseInt(x.trim())).filter(x => !isNaN(x));
+    if (array.length) renderArray(array, container);
+});
 
 document.getElementById('start').addEventListener('click', async () => {
-    switch(algorithm) {
-        case 'bubbleSort':
-            await bubbleSort(array, arrayContainer, speed);
-            break;
-        case 'selectionSort':
-            await selectionSort(array, arrayContainer, speed);
-            break;
-        case 'insertionSort':
-            await insertionSort(array, arrayContainer, speed);
-            break;
-        case 'mergeSort':
-            await mergeSort(array, arrayContainer, speed);
-            break;
-        case 'quickSort':
-            await quickSort(array, arrayContainer, speed);
-            break;
+    switch (algorithm) {
+        case 'bubbleSort': await bubbleSort(array, container, speed); break;
+        case 'selectionSort': await selectionSort(array, container, speed); break;
+        case 'insertionSort': await insertionSort(array, container, speed); break;
+        case 'mergeSort': await mergeSort(array, container, speed); break;
+        case 'quickSort': await quickSort(array, container, speed); break;
     }
 });
 
-generateArray();
+generateRandomArray();
