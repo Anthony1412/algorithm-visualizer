@@ -1,19 +1,20 @@
-function swap(arr, i, j) {
-  let temp = arr[i];
-  arr[i] = arr[j];
-  arr[j] = temp;
+export function swap(arr, i, j) {
+    [arr[i], arr[j]] = [arr[j], arr[i]];
 }
 
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+export function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function highlightBars(index1, index2) {
-  const bars = document.querySelectorAll('.bar');
-  bars[index1].classList.add('active');
-  bars[index2].classList.add('active');
-  setTimeout(() => {
-    bars[index1].classList.remove('active');
-    bars[index2].classList.remove('active');
-  }, 150);
+export function renderArray(arr, container, highlight = []) {
+    container.innerHTML = '';
+    const width = container.clientWidth / arr.length - 2;
+    arr.forEach((value, idx) => {
+        const bar = document.createElement('div');
+        bar.classList.add('array-bar');
+        bar.style.height = `${value}px`;
+        bar.style.width = `${width}px`;
+        bar.style.backgroundColor = highlight.includes(idx) ? 'red' : '#4CAF50';
+        container.appendChild(bar);
+    });
 }
