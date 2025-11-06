@@ -1,93 +1,71 @@
-async function bubbleSort(array, updateCallback) {
+async function bubbleSort(array, recordStep) {
     const n = array.length;
-    let comparisons = 0;
-    let swaps = 0;
     
-    await updateCallback({
+    // Record initial state
+    await recordStep({
         array: [...array],
-        message: "Starting Bubble Sort - Compare adjacent elements and swap if needed",
-        comparisons: comparisons,
-        swaps: swaps
+        message: "Starting Bubble Sort - Compare adjacent elements and swap if needed"
     });
     
-    await delay(800);
-
     for (let i = 0; i < n - 1; i++) {
         let swapped = false;
         
-        await updateCallback({
+        await recordStep({
             array: [...array],
-            message: `Pass ${i + 1}: Comparing adjacent elements from start to position ${n - i - 1}`,
-            comparisons: comparisons,
-            swaps: swaps
+            message: `Pass ${i + 1}: Comparing elements from start to ${n - i - 1}`
         });
         
-        await delay(400);
-
         for (let j = 0; j < n - i - 1; j++) {
-            // Highlight comparing indices
-            comparisons++;
-            await updateCallback({
+            // Compare step
+            await recordStep({
                 array: [...array],
                 comparisons: 1,
                 comparing: [j, j + 1],
-                message: `Comparing ${array[j]} and ${array[j + 1]} at positions ${j} and ${j + 1}`
+                message: `Comparing ${array[j]} and ${array[j + 1]}`
             });
             
-            await delay(300);
-
             if (array[j] > array[j + 1]) {
-                // Show swap decision
-                await updateCallback({
+                // Swap step
+                await recordStep({
                     array: [...array],
-                    comparing: [j, j + 1],
-                    message: `${array[j]} > ${array[j + 1]} - Elements need to be swapped`
+                    message: `${array[j]} > ${array[j + 1]} - Swapping elements`
                 });
                 
-                await delay(300);
-
-                // Perform swap
-                [array[j], array[j + 1]] = [array[j + 1], array[j]];
+                swap(array, j, j + 1);
                 swapped = true;
-                swaps++;
                 
-                await updateCallback({
+                await recordStep({
                     array: [...array],
                     swaps: 1,
                     swapping: [j, j + 1],
-                    message: `Swapped! ${array[j]} and ${array[j + 1]} changed positions`
+                    message: `Swapped ${array[j + 1]} and ${array[j]}`
                 });
                 
-                await delay(400);
+                await delay(50);
             }
         }
         
-        // Mark the sorted element at the end
-        await updateCallback({
+        // Mark sorted element
+        await recordStep({
             array: [...array],
             sorted: [n - i - 1],
-            message: `Element at position ${n - i - 1} is now in its final sorted position`
+            message: `Element at position ${n - i - 1} is now in its final position`
         });
         
-        await delay(500);
-
         if (!swapped) {
-            await updateCallback({
+            await recordStep({
                 array: [...array],
-                sorted: Array.from({ length: n }, (_, idx) => idx),
-                message: "No swaps needed in this pass - Array is completely sorted!"
+                message: "No swaps needed - Array is sorted!"
             });
             break;
         }
     }
     
     // Final sorted state
-    await updateCallback({
+    await recordStep({
         array: [...array],
         sorted: Array.from({ length: n }, (_, i) => i),
-        comparisons: 0,
-        swaps: 0,
-        message: "🎉 Bubble Sort Complete! Array is fully sorted."
+        message: "Bubble Sort Complete!"
     });
     
     return array;
