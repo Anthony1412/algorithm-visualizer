@@ -434,3 +434,569 @@ document.addEventListener('DOMContentLoaded', () => {
     visualizer = new SortingVisualizer();
     window.visualizer = visualizer;
 });
+// In your main app.js, add this to handle algorithm execution
+let isVisualizing = false;
+let currentAnimation = null;
+
+async function startVisualization() {
+    if (!currentAlgorithm || isVisualizing) return;
+    
+    isVisualizing = true;
+    const playPauseButton = document.getElementById('playPause');
+    playPauseButton.innerHTML = '<i class="fas fa-pause"></i> Pause';
+    
+    // Get current array values from DOM
+    const arrayBars = document.querySelectorAll('.array-bar');
+    const array = Array.from(arrayBars).map(bar => parseInt(bar.textContent) || parseInt(bar.style.height));
+    
+    // Get animation speed
+    const speed = getAnimationSpeed();
+    
+    try {
+        // Reset all bars to normal state
+        resetArrayColors();
+        
+        // Execute the selected algorithm
+        switch(currentAlgorithm) {
+            case 'quick':
+                await quickSort([...array], updateVisualization, speed);
+                break;
+            case 'quick-middle':
+                await quickSortMiddlePivot([...array], updateVisualization, speed);
+                break;
+            // Add other algorithms here...
+        }
+    } catch (error) {
+        console.error('Visualization error:', error);
+    } finally {
+        isVisualizing = false;
+        playPauseButton.innerHTML = '<i class="fas fa-play"></i> Play';
+    }
+}
+
+function updateVisualization(state) {
+    return new Promise(resolve => {
+        const arrayBars = document.querySelectorAll('.array-bar');
+        
+        // Update array values if they changed
+        if (state.array) {
+            state.array.forEach((value, index) => {
+                arrayBars[index].textContent = value;
+                arrayBars[index].style.height = `${value}%`;
+            });
+        }
+        
+        // Reset all colors first
+        resetArrayColors();
+        
+        // Apply new colors based on state
+        if (state.comparing) {
+            state.comparing.forEach(index => {
+                arrayBars[index].classList.add('comparing');
+            });
+        }
+        
+        if (state.swapping) {
+            state.swapping.forEach(index => {
+                arrayBars[index].classList.add('swapping');
+            });
+        }
+        
+        if (state.pivot !== undefined) {
+            arrayBars[state.pivot].classList.add('pivot');
+        }
+        
+        if (state.sorted) {
+            state.sorted.forEach(index => {
+                arrayBars[index].classList.add('sorted');
+            });
+        }
+        
+        // Update statistics
+        if (state.comparisons !== undefined) {
+            document.getElementById('comparisons').textContent = state.comparisons;
+        }
+        
+        if (state.swaps !== undefined) {
+            document.getElementById('swaps').textContent = state.swaps;
+        }
+        
+        if (state.message) {
+            document.getElementById('algorithmInfo').textContent = state.message;
+        }
+        
+        resolve();
+    });
+}
+
+function resetArrayColors() {
+    const arrayBars = document.querySelectorAll('.array-bar');
+    arrayBars.forEach(bar => {
+        bar.classList.remove('comparing', 'swapping', 'pivot', 'sorted');
+        bar.classList.add('normal');
+    });
+}
+
+function getAnimationSpeed() {
+    const speedValue = parseInt(document.getElementById('speed').value);
+    // Convert speed value to milliseconds (1-5 becomes 500ms to 100ms)
+    return 600 - (speedValue * 100);
+}
+// Tree and Graph Visualization Functionality
+class TreeGraphVisualizer {
+    constructor() {
+        this.currentStructure = 'tree';
+        this.currentAlgorithm = null;
+        this.isPlaying = false;
+        this.animationSpeed = 300;
+        this.treeData = null;
+        this.graphData = null;
+        this.animationSteps = [];
+        this.currentStep = 0;
+        
+        this.initializeEventListeners();
+        this.generateInitialTree();
+    }
+    
+    initializeEventListeners() {
+        // Structure tabs
+        document.querySelectorAll('.structure-tab').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                const structure = e.target.getAttribute('data-structure');
+                this.switchStructure(structure);
+            });
+        });
+        
+        // Algorithm buttons
+        document.querySelectorAll('.tree-algorithms .btn-algorithm, .graph-algorithms .btn-algorithm').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const algorithm = e.currentTarget.getAttribute('data-algo');
+                this.selectAlgorithm(algorithm);
+            });
+        });
+        
+        // Control buttons
+        document.getElementById('generateTreeGraph').addEventListener('click', () => {
+            this.generateNewStructure();
+        });
+        
+        document.getElementById('playPauseTreeGraph').addEventListener('click', () => {
+            this.togglePlayPause();
+        });
+        
+        document.getElementById('resetTreeGraph').addEventListener('click', () => {
+            this.resetVisualization();
+        });
+        
+        document.getElementById('stepBackTreeGraph').addEventListener('click', () => {
+            this.stepBackward();
+        });
+        
+        document.getElementById('stepForwardTreeGraph').addEventListener('click', () => {
+            this.stepForward();
+        });
+        
+        // Configuration sliders
+        document.getElementById('treeDepth').addEventListener('input', (e) => {
+            document.getElementById('treeDepthValue').textContent = e.target.value;
+        });
+        
+        document.getElementById('nodeCount').addEventListener('input', (e) => {
+            document.getElementById('nodeCountValue').textContent = e.target.value;
+        });
+        
+        document.getElementById('graphNodes').addEventListener('input', (e) => {
+            document.getElementById('graphNodesValue').textContent = e.target.value;
+        });
+        
+        document.getElementById('graphEdges').addEventListener('input', (e) => {
+            const values = ['Very Low', 'Low', 'Medium', 'High', 'Very High'];
+            document.getElementById('graphEdgesValue').textContent = values[e.target.value - 1];
+        });
+        
+        // Tree presets
+        document.querySelectorAll('.tree-presets .btn-small').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const type = e.target.getAttribute('data-tree');
+                this.generateTree(type);
+            });
+        });
+        
+        // Graph presets
+        document.querySelectorAll('.graph-presets .btn-small').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const type = e.target.getAttribute('data-graph');
+                this.generateGraph(type);
+            });
+        });
+    }
+    
+    switchStructure(structure) {
+        this.currentStructure = structure;
+        
+        // Update active tab
+        document.querySelectorAll('.structure-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        document.querySelector(`[data-structure="${structure}"]`).classList.add('active');
+        
+        // Show/hide controls
+        if (structure === 'tree') {
+            document.querySelector('.tree-controls').style.display = 'block';
+            document.querySelector('.graph-controls').style.display = 'none';
+        } else {
+            document.querySelector('.tree-controls').style.display = 'none';
+            document.querySelector('.graph-controls').style.display = 'block';
+        }
+        
+        // Generate new structure
+        this.generateNewStructure();
+    }
+    
+    selectAlgorithm(algorithm) {
+        this.currentAlgorithm = algorithm;
+        
+        // Update UI
+        document.getElementById('currentTreeGraphAlgorithm').textContent = this.getAlgorithmName(algorithm);
+        document.getElementById('treeGraphDescription').textContent = this.getAlgorithmDescription(algorithm);
+        
+        // Update active button
+        document.querySelectorAll('.tree-algorithms .btn-algorithm, .graph-algorithms .btn-algorithm').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.querySelector(`[data-algo="${algorithm}"]`).classList.add('active');
+        
+        // Enable play button
+        document.getElementById('playPauseTreeGraph').disabled = false;
+        
+        // Generate animation steps
+        this.generateAnimationSteps();
+    }
+    
+    getAlgorithmName(algorithm) {
+        const names = {
+            'bfs-tree': 'Breadth-First Search (Tree)',
+            'dfs-tree': 'Depth-First Search (Tree)',
+            'inorder': 'Inorder Traversal',
+            'preorder': 'Preorder Traversal',
+            'postorder': 'Postorder Traversal',
+            'bfs-graph': 'Breadth-First Search (Graph)',
+            'dfs-graph': 'Depth-First Search (Graph)',
+            'dijkstra': "Dijkstra's Algorithm",
+            'astar': 'A* Search Algorithm'
+        };
+        return names[algorithm] || 'Unknown Algorithm';
+    }
+    
+    getAlgorithmDescription(algorithm) {
+        const descriptions = {
+            'bfs-tree': 'Explores all nodes at the current depth before moving to the next level',
+            'dfs-tree': 'Explores as far as possible along each branch before backtracking',
+            'inorder': 'Visits left subtree, then root, then right subtree',
+            'preorder': 'Visits root, then left subtree, then right subtree',
+            'postorder': 'Visits left subtree, then right subtree, then root',
+            'bfs-graph': 'Explores all neighbors at current depth before moving to next level',
+            'dfs-graph': 'Explores as far as possible along each branch before backtracking',
+            'dijkstra': 'Finds the shortest path between nodes in a weighted graph',
+            'astar': 'Finds the shortest path using heuristics to guide the search'
+        };
+        return descriptions[algorithm] || 'Select an algorithm to see its description';
+    }
+    
+    generateNewStructure() {
+        if (this.currentStructure === 'tree') {
+            this.generateTree('random');
+        } else {
+            this.generateGraph('random');
+        }
+    }
+    
+    generateTree(type) {
+        // Generate tree data based on type and configuration
+        const depth = parseInt(document.getElementById('treeDepth').value);
+        const maxChildren = parseInt(document.getElementById('nodeCount').value);
+        const balanced = document.getElementById('balanceTree').checked;
+        
+        // Implementation for generating different tree types
+        this.treeData = this.generateTreeData(type, depth, maxChildren, balanced);
+        
+        // Render the tree
+        this.renderTree();
+        
+        // Reset visualization
+        this.resetVisualization();
+    }
+    
+    generateGraph(type) {
+        // Generate graph data based on type and configuration
+        const nodeCount = parseInt(document.getElementById('graphNodes').value);
+        const edgeDensity = parseInt(document.getElementById('graphEdges').value);
+        const directed = document.getElementById('directedGraph').checked;
+        const weighted = document.getElementById('weightedGraph').checked;
+        
+        // Implementation for generating different graph types
+        this.graphData = this.generateGraphData(type, nodeCount, edgeDensity, directed, weighted);
+        
+        // Render the graph
+        this.renderGraph();
+        
+        // Reset visualization
+        this.resetVisualization();
+    }
+    
+    generateInitialTree() {
+        this.generateTree('binary');
+    }
+    
+    generateTreeData(type, depth, maxChildren, balanced) {
+        // Simplified tree generation - in a real implementation, this would create
+        // proper tree structures for different types
+        return {
+            type: type,
+            depth: depth,
+            maxChildren: maxChildren,
+            balanced: balanced,
+            root: this.generateTreeNode(0, depth, maxChildren, balanced)
+        };
+    }
+    
+    generateTreeNode(level, maxLevel, maxChildren, balanced) {
+        if (level >= maxLevel) return null;
+        
+        const value = Math.floor(Math.random() * 100);
+        const node = {
+            value: value,
+            level: level,
+            children: []
+        };
+        
+        const childCount = balanced ? maxChildren : Math.floor(Math.random() * maxChildren) + 1;
+        
+        for (let i = 0; i < childCount; i++) {
+            const child = this.generateTreeNode(level + 1, maxLevel, maxChildren, balanced);
+            if (child) {
+                node.children.push(child);
+            }
+        }
+        
+        return node;
+    }
+    
+    generateGraphData(type, nodeCount, edgeDensity, directed, weighted) {
+        // Simplified graph generation
+        const nodes = [];
+        const edges = [];
+        
+        // Generate nodes
+        for (let i = 0; i < nodeCount; i++) {
+            nodes.push({
+                id: i,
+                label: `Node ${i}`,
+                x: Math.random() * 400 + 50,
+                y: Math.random() * 300 + 50
+            });
+        }
+        
+        // Generate edges based on density
+        const maxEdges = directed ? nodeCount * (nodeCount - 1) : nodeCount * (nodeCount - 1) / 2;
+        const targetEdges = Math.floor(maxEdges * (edgeDensity / 5));
+        
+        for (let i = 0; i < targetEdges; i++) {
+            const from = Math.floor(Math.random() * nodeCount);
+            let to = Math.floor(Math.random() * nodeCount);
+            
+            // Ensure we don't have self-loops unless it's a specific graph type
+            while (to === from) {
+                to = Math.floor(Math.random() * nodeCount);
+            }
+            
+            edges.push({
+                from: from,
+                to: to,
+                weight: weighted ? Math.floor(Math.random() * 10) + 1 : 1,
+                directed: directed
+            });
+        }
+        
+        return {
+            type: type,
+            nodes: nodes,
+            edges: edges,
+            directed: directed,
+            weighted: weighted
+        };
+    }
+    
+    renderTree() {
+        const svg = document.getElementById('treeGraphSVG');
+        svg.innerHTML = '';
+        
+        // In a real implementation, this would use D3.js or similar
+        // to render the tree with proper positioning
+        
+        // Placeholder implementation
+        const placeholder = document.createElement('div');
+        placeholder.style.textAlign = 'center';
+        placeholder.style.padding = '2rem';
+        placeholder.innerHTML = `
+            <h3>Tree Visualization</h3>
+            <p>Tree would be rendered here with ${this.treeData.depth} levels</p>
+            <p>Algorithm: ${this.currentAlgorithm || 'None selected'}</p>
+        `;
+        
+        // In a real implementation, we would add proper SVG elements here
+        // For now, we'll just show a placeholder
+        svg.appendChild(placeholder);
+    }
+    
+    renderGraph() {
+        const svg = document.getElementById('treeGraphSVG');
+        svg.innerHTML = '';
+        
+        // In a real implementation, this would use D3.js or similar
+        // to render the graph with proper force-directed layout
+        
+        // Placeholder implementation
+        const placeholder = document.createElement('div');
+        placeholder.style.textAlign = 'center';
+        placeholder.style.padding = '2rem';
+        placeholder.innerHTML = `
+            <h3>Graph Visualization</h3>
+            <p>Graph with ${this.graphData.nodes.length} nodes and ${this.graphData.edges.length} edges</p>
+            <p>Algorithm: ${this.currentAlgorithm || 'None selected'}</p>
+        `;
+        
+        // In a real implementation, we would add proper SVG elements here
+        // For now, we'll just show a placeholder
+        svg.appendChild(placeholder);
+    }
+    
+    generateAnimationSteps() {
+        this.animationSteps = [];
+        
+        if (!this.currentAlgorithm) return;
+        
+        // Generate steps based on the selected algorithm
+        // This is a simplified version - in reality, you would implement
+        // the actual algorithms and record each step
+        
+        const stepCount = 20; // Example step count
+        
+        for (let i = 0; i < stepCount; i++) {
+            this.animationSteps.push({
+                step: i,
+                message: `Step ${i + 1}: Processing...`,
+                visited: Array.from({ length: i + 1 }, (_, idx) => idx),
+                current: i
+            });
+        }
+        
+        // Update progress
+        this.updateProgress();
+    }
+    
+    togglePlayPause() {
+        this.isPlaying = !this.isPlaying;
+        const button = document.getElementById('playPauseTreeGraph');
+        
+        if (this.isPlaying) {
+            button.innerHTML = '<i class="fas fa-pause"></i> Pause';
+            this.playAnimation();
+        } else {
+            button.innerHTML = '<i class="fas fa-play"></i> Play';
+        }
+    }
+    
+    async playAnimation() {
+        while (this.isPlaying && this.currentStep < this.animationSteps.length) {
+            await this.delay(this.animationSpeed);
+            this.stepForward();
+        }
+        
+        if (this.currentStep >= this.animationSteps.length) {
+            this.isPlaying = false;
+            document.getElementById('playPauseTreeGraph').innerHTML = '<i class="fas fa-play"></i> Play';
+        }
+    }
+    
+    stepForward() {
+        if (this.currentStep < this.animationSteps.length) {
+            this.currentStep++;
+            this.updateVisualization();
+        }
+    }
+    
+    stepBackward() {
+        if (this.currentStep > 0) {
+            this.currentStep--;
+            this.updateVisualization();
+        }
+    }
+    
+    updateVisualization() {
+        if (this.animationSteps.length === 0) return;
+        
+        const step = this.animationSteps[this.currentStep - 1] || this.animationSteps[0];
+        
+        // Update visualization based on step data
+        // This would update node colors, edges, etc.
+        
+        // Update progress
+        this.updateProgress();
+        
+        // Update traversal path
+        this.updateTraversalPath(step);
+    }
+    
+    updateProgress() {
+        const progress = (this.currentStep / this.animationSteps.length) * 100;
+        document.getElementById('treeGraphProgressFill').style.width = `${progress}%`;
+        document.getElementById('treeGraphProgressText').textContent = `${Math.round(progress)}% Complete`;
+        document.getElementById('treeGraphStepCounter').textContent = `Step: ${this.currentStep}/${this.animationSteps.length}`;
+    }
+    
+    updateTraversalPath(step) {
+        const pathElement = document.getElementById('traversalPath');
+        
+        if (!step || !step.visited) {
+            pathElement.innerHTML = '<h4>Traversal Path</h4><p>No traversal data</p>';
+            return;
+        }
+        
+        let html = '<h4>Traversal Path</h4><ol>';
+        
+        step.visited.forEach((nodeId, index) => {
+            const isCurrent = index === step.current;
+            const className = isCurrent ? 'class="current"' : 'class="visited"';
+            html += `<li ${className}>Node ${nodeId}</li>`;
+        });
+        
+        html += '</ol>';
+        pathElement.innerHTML = html;
+    }
+    
+    resetVisualization() {
+        this.currentStep = 0;
+        this.isPlaying = false;
+        document.getElementById('playPauseTreeGraph').innerHTML = '<i class="fas fa-play"></i> Play';
+        
+        // Reset visualization to initial state
+        if (this.currentStructure === 'tree') {
+            this.renderTree();
+        } else {
+            this.renderGraph();
+        }
+        
+        this.updateProgress();
+        document.getElementById('traversalPath').innerHTML = '<h4>Traversal Path</h4><p>Algorithm not started</p>';
+    }
+    
+    delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+}
+
+// Initialize the visualizer when the page loads
+document.addEventListener('DOMContentLoaded', function() {
+    window.treeGraphVisualizer = new TreeGraphVisualizer();
+});
